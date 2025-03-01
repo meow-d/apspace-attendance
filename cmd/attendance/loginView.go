@@ -19,6 +19,10 @@ func loginView(m model) string {
 }
 
 func loginUpdate(m model, msg tea.Msg) (model, tea.Cmd) {
+	cmds := make([]tea.Cmd, 2)
+	m.usernameInput, cmds[0] = m.usernameInput.Update(msg)
+	m.passwordInput, cmds[1] = m.passwordInput.Update(msg)
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 
@@ -38,8 +42,5 @@ func loginUpdate(m model, msg tea.Msg) (model, tea.Cmd) {
 		}
 	}
 
-	cmds := make([]tea.Cmd, 2)
-	m.usernameInput, cmds[0] = m.usernameInput.Update(msg)
-	m.passwordInput, cmds[1] = m.passwordInput.Update(msg)
 	return m, tea.Batch(cmds...)
 }
