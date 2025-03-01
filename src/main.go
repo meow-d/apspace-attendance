@@ -12,50 +12,73 @@ import (
 )
 
 func main() {
-	args := os.Args
-
-	if len(args) <= 2 {
-		auth, err := getAuth()
+	// debug
+	if len(os.Getenv("DEBUG")) > 0 {
+		f, err := tea.LogToFile("debug.log", "debug")
 		if err != nil {
-			fmt.Println(err)
-			return
+			fmt.Println("fatal:", err)
+			os.Exit(1)
 		}
+		defer f.Close()
+	}
 
-		model := initialModel(args, auth)
-		p := tea.NewProgram(model)
-		if _, err := p.Run(); err != nil {
-			log.Fatal(err)
-		}
-
-	} else {
+	// check args
+	args := os.Args
+	if !(len(args) <= 2) {
 		fmt.Println("Too many arguments")
 		return
 	}
-}
 
-// types
-type statusMsg string
+	// main app
+	model := initialModel(args)
+	p := tea.NewProgram(model)
+	if _, err := p.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
 
 // model
+
+type statusMsg string
+
+// TODO: use enum for view?
 type model struct {
-	client  Client
-	view    int
-	input   textinput.Model
-	spinner spinner.Model
-	code    string
-	status  string
+	client        Client
+	view          int // 0: input, 1: submitting, 3: login
+	usernameInput textinput.Model
+	passwordInput textinput.Model
+	codeInput     textinput.Model
+	spinner       spinner.Model
+	code          string
+	status        string
 }
 
-func initialModel(args []string, auth Auth) model {
-	c := NewClient(auth)
+func initialModel(args []string) model {
+	c := NewClient()
 
-	i := textinput.New()
-	i.Placeholder = "000"
-	i.Focus()
-	i.CharLimit = 3
-	i.Width = 3
-	i.Prompt = ""
-	i.Validate = validateCode
+	ui := textinput.New()
+	ui.Placeholder = "TP000000"
+	ui.Focus()
+	ui.CharLimit = 8
+	ui.Width = 20
+	ui.Prompt = ""
+	ui.SetValue(c.Auth.Username)
+
+	pi := textinput.New()
+	pi.Placeholder = "•••••••••••••"
+	pi.EchoMode = textinput.EchoPassword
+	pi.EchoCharacter = '•'
+	pi.Prompt = ""
+	pi.CharLimit = 40
+	pi.Width = 20
+
+	ci := textinput.New()
+	ci.Placeholder = "000"
+	ci.Focus()
+	ci.CharLimit = 3
+	ci.Width = 3
+	ci.Prompt = ""
+	ci.Validate = validateCode
 
 	s := spinner.New()
 	s.Spinner = spinner.Pulse
@@ -63,15 +86,21 @@ func initialModel(args []string, auth Auth) model {
 
 	v := 0
 	if len(args) == 2 {
-		i.SetValue(args[1])
+		ci.SetValue(args[1])
 		v = 1
+	}
+	if c.Auth.Username == "" || c.Auth.Password == "" {
+		v = 3
 	}
 
 	return model{
-		client:  c,
-		view:    v,
-		spinner: s,
-		input:   i,
+		client:        c,
+		view:          v,
+		usernameInput: ui,
+		passwordInput: pi,
+		codeInput:     ci,
+		spinner:       s,
+		code:          ci.Value(),
 	}
 }
 
@@ -84,13 +113,15 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(tea.KeyMsg); ok {
-		k := msg.String()
-		if k == "ctrl+c" {
+		switch msg.String() {
+		case "ctrl+c", "esc":
 			return m, tea.Quit
 		}
 	}
 
 	switch m.view {
+	case 3:
+		return loginUpdate(m, msg)
 	case 0:
 		return inputUpdate(m, msg)
 	default:
@@ -101,12 +132,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	var s string
 	switch m.view {
+	case 3:
+		s = loginView(m)
 	case 0:
 		s = inputView(m)
-	case 1:
-		s = submittingView(m)
 	default:
-		s = "Invalid view"
+		s = submittingView(m)
 	}
 	return appStyle.Render(s)
 }

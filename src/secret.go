@@ -1,40 +1,39 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/joho/godotenv"
+	"github.com/zalando/go-keyring"
 )
 
-func getAuth() (Auth, error) {
-	err := godotenv.Load()
-	if err != nil {
-		return Auth{}, err
-	}
+const Service string = "apspace"
 
-	username := os.Getenv("USERNAME")
-	password := os.Getenv("PASSWORD")
-	tgt := os.Getenv("TGT")
-	if username == "" || password == "" {
-		return Auth{}, fmt.Errorf("USERNAME or PASSWORD not found in .env file. Please add them.")
-	}
+func getAuth() Auth {
+	username, _ := keyring.Get(Service, "username")
+	password, _ := keyring.Get(Service, "password")
+	tgt, _ := keyring.Get(Service, "tgt")
 
 	auth := Auth{
 		Username: username,
 		Password: password,
 		TGT:      tgt,
 	}
-	return auth, err
+	return auth
 }
 
-// stupidest thing ever
-// TODO stop doing this and store it properly
 func setAuth(a Auth) error {
-	err := godotenv.Write(map[string]string{
-		"USERNAME": a.Username,
-		"PASSWORD": a.Password,
-		"TGT":      a.TGT,
-	}, ".env")
-	return err
+	err := keyring.Set(Service, "username", a.Username)
+	if err != nil {
+		return err
+	}
+
+	err = keyring.Set(Service, "password", a.Password)
+	if err != nil {
+		return err
+	}
+
+	err = keyring.Set(Service, "tgt", a.TGT)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

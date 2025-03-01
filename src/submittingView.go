@@ -14,7 +14,7 @@ func submittingUpdate(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case statusMsg:
 		m.status = string(msg)
-		m.input.SetValue("")
+		m.codeInput.SetValue("")
 		m.view = 0
 		return m, textinput.Blink
 	}

@@ -20,20 +20,25 @@ type Client struct {
 	httpClient *http.Client
 }
 
-func NewClient(a Auth) Client {
+// get auth info and creates a new client class
+func NewClient() Client {
+	a := getAuth()
+
 	client := &http.Client{}
 	auth := Auth{
 		Username: a.Username,
 		Password: a.Password,
 		TGT:      a.TGT,
 	}
+
 	return Client{
 		Auth:       auth,
 		httpClient: client,
 	}
 }
 
-func (c Client) request(method string, url string, body string, headers map[string]string) ([]byte, error) {
+// sends a http request. doesn't close the response body
+func (c Client) request(method string, url string, body string, headers map[string]string) (*http.Response, error) {
 	bodyReader := strings.NewReader(body)
 	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
@@ -50,43 +55,81 @@ func (c Client) request(method string, url string, body string, headers map[stri
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+
+	return resp, err
+}
+
+// send a http request and returns the response body
+func (c Client) requestBody(method string, url string, body string, headers map[string]string) ([]byte, error) {
+	resp, err := c.request(method, url, body, headers)
 
 	respBody, err := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
 	}
-
 	return respBody, err
 }
 
-func (c Client) login(username string, password string) error {
+// overrides auth info, but doesn't do the actual login as that's in refreshTGT()
+func (c Client) login(username string, password string) {
 	c.Auth.TGT = ""
 	c.Auth.Username = username
 	c.Auth.Password = password
-
-	return c.refreshTGT()
+	setAuth(c.Auth)
 }
 
+func (c Client) removeTGT() {
+	c.Auth.TGT = ""
+	setAuth(c.Auth)
+}
+
+func (c Client) logout() {
+	c.Auth.Username = ""
+	c.Auth.Password = ""
+	c.Auth.TGT = ""
+	setAuth(c.Auth)
+}
+
+// logs in and gets the tgt
+// ideally password shouldn't be stored at all but, but the tgt expires relatively often. it's how APSpace does stuff
 func (c Client) refreshTGT() error {
+	// remove tgt from auth first
+	c.removeTGT()
+
 	url := "https://cas.apiit.edu.my/cas/v1/tickets"
-	body := fmt.Sprintf("tgt=%s", c.Auth.TGT)
+	body := fmt.Sprintf("username=%s&password=%s", c.Auth.Username, c.Auth.Password)
 	headers := map[string]string{
 		"Content-Type": "application/x-www-form-urlencoded",
 	}
 	resp, err := c.request("POST", url, body, headers)
+	defer resp.Body.Close()
 
-	if err == nil {
-		c.Auth.TGT = string(resp)
-		setAuth(c.Auth)
+	if err != nil {
 		return err
 	}
 
-	if strings.Contains(err.Error(), "401") {
-		return fmt.Errorf("Incorrect username or password")
+	if resp.StatusCode != 201 {
+		return fmt.Errorf("Error loggin in. Incorrect username or password?")
 	}
 
-	return fmt.Errorf("Error logging in")
+	location := resp.Header.Get("Location")
+	if location == "" {
+		return fmt.Errorf("Error loggin in. Incorrect username or password?")
+	}
+
+	parts := strings.Split(location, "/")
+	tgt := parts[len(parts)-1]
+	if !strings.HasPrefix(tgt, "TGT-") {
+		return fmt.Errorf("Error loggin in. Incorrect username or password?")
+	}
+
+	c.Auth.TGT = tgt
+	err = setAuth(c.Auth)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c Client) getTicket(service string) (string, error) {
@@ -95,35 +138,58 @@ func (c Client) getTicket(service string) (string, error) {
 	headers := map[string]string{
 		"Content-Type": "application/x-www-form-urlencoded",
 	}
-	resp, err := c.request("POST", url, body, headers)
-
-	return string(resp), err
-}
-
-func (c Client) authenticatedRequest(method, url, body string, headers map[string]string, service string) ([]byte, error) {
-	ticket, err := c.getTicket(service)
+	resp, err := c.requestBody("POST", url, body, headers)
 
 	if err != nil {
-		if strings.Contains(err.Error(), "401") {
+		return "", err
+	}
+	respStr := string(resp)
 
+	if !strings.HasPrefix(respStr, "ST-") {
+		return "", fmt.Errorf("Error getting ticket")
+	}
+
+	return respStr, err
+}
+
+// sends an authanticated request
+// requests a ticket, refreshes tgt if ticket request fails
+func (c Client) authenticatedRequest(method, url, body string, headers map[string]string, service string) ([]byte, error) {
+	// login if tgt not present
+	if c.Auth.TGT == "" {
+		err := c.refreshTGT()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// get ticket
+	ticket, err := c.getTicket(service)
+
+	// refresh tgt if ticket request fails
+	if err != nil {
+		if err.Error() == "Error getting ticket" {
 			err = c.refreshTGT()
 			if err != nil {
 				return nil, err
 			}
-
 			ticket, err = c.getTicket(service)
 			if err != nil {
 				return nil, err
 			}
 		}
+		return nil, err
 	}
 
+	// send request
 	maps.Copy(headers, map[string]string{
 		"ticket": ticket,
 	},
 	)
-	return c.request(method, url, body, headers)
+	return c.requestBody(method, url, body, headers)
 }
+
+// attendance stuff
 
 type GraphQLError struct {
 	Message string `json:"message"`
@@ -152,9 +218,8 @@ func (c Client) submitAttendance(code string) error {
 		return err
 	}
 
-	// TODO test graphql response
 	if len(result.Errors) > 0 {
-		return fmt.Errorf("GraphQL Error: %s", result.Errors[0].Message)
+		return fmt.Errorf("Error: %s", result.Errors[0].Message)
 	}
 	return err
 }
