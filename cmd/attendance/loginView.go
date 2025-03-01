@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -26,19 +27,24 @@ func loginUpdate(m model, msg tea.Msg) (model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 
+		// as far as a i understand from their examples, return textinput.Blink shouldn't be needed here..
+		// strange
 		switch msg.String() {
 		case "tab", "shift+tab", "up", "down":
 			if m.usernameInput.Focused() {
 				m.usernameInput.Blur()
 				m.passwordInput.Focus()
+				return m, textinput.Blink
 			} else {
 				m.passwordInput.Blur()
 				m.usernameInput.Focus()
+				return m, textinput.Blink
 			}
 
 		case "enter":
 			m.client.login(m.usernameInput.Value(), m.passwordInput.Value())
 			m.view = 0
+			return m, textinput.Blink
 		}
 	}
 
