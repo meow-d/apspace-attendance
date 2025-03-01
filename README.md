@@ -18,5 +18,6 @@ go build ./cmd/attendance
 - [X] store passwords in a keyring
 - [X] login
 - [X] proper readme...
+- [ ] fix cursor blinking in login after changing focus
 - [ ] tests (probably won't... but would be nice...)
 
