@@ -7,10 +7,16 @@ import (
 )
 
 func loginView(m model) string {
+	statusMessage := ""
+	if m.status != "" {
+		statusMessage = errorStyle.Render(m.status) + "\n\n"
+	}
+
 	help := [][2]string{{"tab/arrowkeys", "move cursor"}, {"enter", "save"}, {"esc", "quit"}}
 	helpMsg := renderHelpMsg(help)
 
-	return fmt.Sprintf("%s %s\n%s %s\n\n%s",
+	return fmt.Sprintf("%s%s %s\n%s %s\n\n%s",
+		statusMessage,
 		labelStyle.Render("Username"),
 		m.usernameInput.View(),
 		labelStyle.Render("Password"),
@@ -42,11 +48,27 @@ func loginUpdate(m model, msg tea.Msg) (model, tea.Cmd) {
 			}
 
 		case "enter":
-			m.client.login(m.usernameInput.Value(), m.passwordInput.Value())
-			m.view = 0
-			return m, textinput.Blink
+			return validateAndLogin(m)
 		}
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+func validateAndLogin(m model) (model, tea.Cmd) {
+	if err := validateUsername(m.usernameInput.Value()); err != nil {
+		return m, func() tea.Msg {
+			return statusMsg(err.Error())
+		}
+	}
+	if err := validateExists(m.passwordInput.Value()); err != nil {
+		return m, func() tea.Msg {
+			return statusMsg(err.Error())
+		}
+	}
+
+	m.client.login(m.usernameInput.Value(), m.passwordInput.Value())
+	m.view = 0
+	m.status = ""
+	return m, textinput.Blink
 }

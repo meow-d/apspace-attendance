@@ -77,7 +77,6 @@ func initialModel(args []string) model {
 	ci.CharLimit = 3
 	ci.Width = 3
 	ci.Prompt = ""
-	ci.Validate = validateCode
 	ci.Focus()
 
 	s := spinner.New()
@@ -106,17 +105,22 @@ func initialModel(args []string) model {
 
 func (m model) Init() tea.Cmd {
 	if m.view == 1 {
-		return tea.Batch(attendance(m), m.spinner.Tick)
+		var cmd tea.Cmd
+		m, cmd = attendance(m)
+		return cmd
 	}
 	return textinput.Blink
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "esc":
 			return m, tea.Quit
 		}
+	case statusMsg:
+		m.status = string(msg)
 	}
 
 	switch m.view {
