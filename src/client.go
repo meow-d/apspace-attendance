@@ -21,7 +21,7 @@ type Client struct {
 }
 
 // get auth info and creates a new client class
-func NewClient() Client {
+func NewClient() *Client {
 	a := getAuth()
 
 	client := &http.Client{}
@@ -31,14 +31,14 @@ func NewClient() Client {
 		TGT:      a.TGT,
 	}
 
-	return Client{
+	return &Client{
 		Auth:       auth,
 		httpClient: client,
 	}
 }
 
 // sends a http request. doesn't close the response body
-func (c Client) request(method string, url string, body string, headers map[string]string) (*http.Response, error) {
+func (c *Client) request(method string, url string, body string, headers map[string]string) (*http.Response, error) {
 	bodyReader := strings.NewReader(body)
 	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
@@ -60,7 +60,7 @@ func (c Client) request(method string, url string, body string, headers map[stri
 }
 
 // send a http request and returns the response body
-func (c Client) requestBody(method string, url string, body string, headers map[string]string) ([]byte, error) {
+func (c *Client) requestBody(method string, url string, body string, headers map[string]string) ([]byte, error) {
 	resp, err := c.request(method, url, body, headers)
 
 	respBody, err := io.ReadAll(resp.Body)
@@ -72,19 +72,19 @@ func (c Client) requestBody(method string, url string, body string, headers map[
 }
 
 // overrides auth info, but doesn't do the actual login as that's in refreshTGT()
-func (c Client) login(username string, password string) {
+func (c *Client) login(username string, password string) {
 	c.Auth.TGT = ""
 	c.Auth.Username = username
 	c.Auth.Password = password
 	setAuth(c.Auth)
 }
 
-func (c Client) removeTGT() {
+func (c *Client) removeTGT() {
 	c.Auth.TGT = ""
 	setAuth(c.Auth)
 }
 
-func (c Client) logout() {
+func (c *Client) logout() {
 	c.Auth.Username = ""
 	c.Auth.Password = ""
 	c.Auth.TGT = ""
@@ -93,7 +93,7 @@ func (c Client) logout() {
 
 // logs in and gets the tgt
 // ideally password shouldn't be stored at all but, but the tgt expires relatively often. it's how APSpace does stuff
-func (c Client) refreshTGT() error {
+func (c *Client) refreshTGT() error {
 	// remove tgt from auth first
 	c.removeTGT()
 
@@ -132,7 +132,7 @@ func (c Client) refreshTGT() error {
 	return nil
 }
 
-func (c Client) getTicket(service string) (string, error) {
+func (c *Client) getTicket(service string) (string, error) {
 	url := fmt.Sprintf("https://cas.apiit.edu.my/cas/v1/tickets/%s", c.Auth.TGT)
 	body := fmt.Sprintf("service=%s", service)
 	headers := map[string]string{
@@ -154,7 +154,7 @@ func (c Client) getTicket(service string) (string, error) {
 
 // sends an authanticated request
 // requests a ticket, refreshes tgt if ticket request fails
-func (c Client) authenticatedRequest(method, url, body string, headers map[string]string, service string) ([]byte, error) {
+func (c *Client) authenticatedRequest(method, url, body string, headers map[string]string, service string) ([]byte, error) {
 	// login if tgt not present
 	if c.Auth.TGT == "" {
 		err := c.refreshTGT()
@@ -200,7 +200,7 @@ type GraphQLResponse struct {
 	Errors []GraphQLError  `json:"errors"`
 }
 
-func (c Client) submitAttendance(code string) error {
+func (c *Client) submitAttendance(code string) error {
 	service := "https://api.apiit.edu.my/attendix"
 	url := "https://attendix.apu.edu.my/graphql"
 	body := fmt.Sprintf(`{"operationName":"updateAttendance","variables":{"otp":"%s"},"query":"mutation updateAttendance($otp: String!) {\n  updateAttendance(otp: $otp) {\n    id\n    attendance\n    classcode\n    date\n    startTime\n    endTime\n    classType\n    __typename\n  }\n}\n"}`, code)

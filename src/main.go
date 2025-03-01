@@ -43,7 +43,7 @@ type statusMsg string
 
 // TODO: use enum for view?
 type model struct {
-	client        Client
+	client        *Client
 	view          int // 0: input, 1: submitting, 3: login
 	usernameInput textinput.Model
 	passwordInput textinput.Model
