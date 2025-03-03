@@ -8,12 +8,12 @@ import (
 )
 
 func inputView(m model) string {
-	errorMsg := ""
-	// TODO urm..... urm..... stop doing this....?
+	// TODO proper way to handle success messages
+	statusMessage := ""
 	if m.status == "success" {
-		errorMsg = successStyle.Render("Success! Submit another one?") + "\n\n"
+		statusMessage = successStyle.Render("Success! Submit another one?") + "\n\n"
 	} else if m.status != "" {
-		errorMsg = errorStyle.Render(m.status) + "\n\n"
+		statusMessage = errorStyle.Render(m.status) + "\n\n"
 	}
 
 	help := [][2]string{{"enter", "submit"}, {"l", "logout"}, {"esc", "quit"}}
@@ -21,7 +21,7 @@ func inputView(m model) string {
 
 	return fmt.Sprintf(
 		"%s%s\n%s \n \n%s",
-		errorMsg,
+		statusMessage,
 		labelStyle.Render("Attendance code"),
 		m.codeInput.View(),
 		helpMsg,
@@ -35,11 +35,10 @@ func inputUpdate(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			m.code = m.codeInput.Value()
-			m.view = 1
-			return m, tea.Batch(m.spinner.Tick, attendance(m))
+			return attendance(m)
 		case "l":
 			m.client.logout()
+			m.status = ""
 			m.view = 3
 			return m, textinput.Blink
 		}
@@ -50,12 +49,21 @@ func inputUpdate(m model, msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func attendance(m model) tea.Cmd {
-	return func() tea.Msg {
+func attendance(m model) (model, tea.Cmd) {
+	if err := validateCode(m.codeInput.Value()); err != nil {
+		return m, func() tea.Msg {
+			return statusMsg(err.Error())
+		}
+	}
+
+	m.code = m.codeInput.Value()
+	m.view = 1
+	attendanceFunc := func() tea.Msg {
 		err := m.client.submitAttendance(m.code)
 		if err != nil {
 			return statusMsg(err.Error())
 		}
 		return statusMsg("success")
 	}
+	return m, tea.Batch(attendanceFunc, m.spinner.Tick)
 }

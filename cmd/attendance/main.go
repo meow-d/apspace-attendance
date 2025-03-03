@@ -58,11 +58,11 @@ func initialModel(args []string) model {
 
 	ui := textinput.New()
 	ui.Placeholder = "TP000000"
-	ui.Focus()
 	ui.CharLimit = 8
 	ui.Width = 20
 	ui.Prompt = ""
 	ui.SetValue(c.Auth.Username)
+	ui.Focus()
 
 	pi := textinput.New()
 	pi.Placeholder = "•••••••••••••"
@@ -74,11 +74,10 @@ func initialModel(args []string) model {
 
 	ci := textinput.New()
 	ci.Placeholder = "000"
-	ci.Focus()
 	ci.CharLimit = 3
 	ci.Width = 3
 	ci.Prompt = ""
-	ci.Validate = validateCode
+	ci.Focus()
 
 	s := spinner.New()
 	s.Spinner = spinner.Pulse
@@ -105,18 +104,23 @@ func initialModel(args []string) model {
 }
 
 func (m model) Init() tea.Cmd {
-	if m.view == 0 {
-		return textinput.Blink
+	if m.view == 1 {
+		var cmd tea.Cmd
+		m, cmd = attendance(m)
+		return cmd
 	}
-	return tea.Batch(attendance(m), m.spinner.Tick)
+	return textinput.Blink
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "esc":
 			return m, tea.Quit
 		}
+	case statusMsg:
+		m.status = string(msg)
 	}
 
 	switch m.view {

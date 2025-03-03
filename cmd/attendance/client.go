@@ -110,18 +110,18 @@ func (c *Client) refreshTGT() error {
 	}
 
 	if resp.StatusCode != 201 {
-		return fmt.Errorf("Error loggin in. Incorrect username or password?")
+		return fmt.Errorf("error loggin in. Incorrect username or password?")
 	}
 
 	location := resp.Header.Get("Location")
 	if location == "" {
-		return fmt.Errorf("Error loggin in. Incorrect username or password?")
+		return fmt.Errorf("error loggin in. Incorrect username or password?")
 	}
 
 	parts := strings.Split(location, "/")
 	tgt := parts[len(parts)-1]
 	if !strings.HasPrefix(tgt, "TGT-") {
-		return fmt.Errorf("Error loggin in. Incorrect username or password?")
+		return fmt.Errorf("error loggin in. Incorrect username or password?")
 	}
 
 	c.Auth.TGT = tgt
@@ -146,7 +146,7 @@ func (c *Client) getTicket(service string) (string, error) {
 	respStr := string(resp)
 
 	if !strings.HasPrefix(respStr, "ST-") {
-		return "", fmt.Errorf("Error getting ticket")
+		return "", fmt.Errorf("error getting ticket")
 	}
 
 	return respStr, err
@@ -219,7 +219,7 @@ func (c *Client) submitAttendance(code string) error {
 	}
 
 	if len(result.Errors) > 0 {
-		return fmt.Errorf("Error: %s", result.Errors[0].Message)
+		return fmt.Errorf("error: %s", result.Errors[0].Message)
 	}
 	return err
 }
