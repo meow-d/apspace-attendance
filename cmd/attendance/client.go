@@ -109,19 +109,20 @@ func (c *Client) refreshTGT() error {
 		return err
 	}
 
+	loginErr := fmt.Errorf("error loggin in. incorrect username or password?")
 	if resp.StatusCode != 201 {
-		return fmt.Errorf("error loggin in. Incorrect username or password?")
+		return loginErr
 	}
 
 	location := resp.Header.Get("Location")
 	if location == "" {
-		return fmt.Errorf("error loggin in. Incorrect username or password?")
+		return loginErr
 	}
 
 	parts := strings.Split(location, "/")
 	tgt := parts[len(parts)-1]
 	if !strings.HasPrefix(tgt, "TGT-") {
-		return fmt.Errorf("error loggin in. Incorrect username or password?")
+		return loginErr
 	}
 
 	c.Auth.TGT = tgt
@@ -146,7 +147,7 @@ func (c *Client) getTicket(service string) (string, error) {
 	respStr := string(resp)
 
 	if !strings.HasPrefix(respStr, "ST-") {
-		return "", fmt.Errorf("error getting ticket")
+		return "", fmt.Errorf("error getting ticket: %s", respStr)
 	}
 
 	return respStr, err
@@ -215,11 +216,14 @@ func (c *Client) submitAttendance(code string) error {
 
 	var result GraphQLResponse
 	if err := json.Unmarshal(resp, &result); err != nil {
-		return err
+		respStr := string(resp)
+		return fmt.Errorf("error decoding json: %s", respStr)
 	}
 
 	if len(result.Errors) > 0 {
-		return fmt.Errorf("error: %s", result.Errors[0].Message)
+		errorMsg := result.Errors[0].Message
+		errorMsg = strings.ToLower(errorMsg)
+		return fmt.Errorf("error submitting attendance: %s", errorMsg)
 	}
 	return err
 }
