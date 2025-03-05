@@ -169,7 +169,7 @@ func (c *Client) authenticatedRequest(method, url, body string, headers map[stri
 
 	// refresh tgt if ticket request fails
 	if err != nil {
-		if err.Error() == "error getting ticket" {
+		if strings.HasPrefix(err.Error(), "error getting ticket: ") {
 			err = c.refreshTGT()
 			if err != nil {
 				return nil, err
