@@ -214,6 +214,18 @@ func (c *Client) submitAttendance(code string) error {
 		return err
 	}
 
+	// retry if no response, no idea why this happens sometimes
+	if len(resp) == 0 {
+		resp, err = c.authenticatedRequest("POST", url, body, headers, service)
+	}
+	if err != nil {
+		return err
+	}
+
+	if len(resp) == 0 {
+		return fmt.Errorf("error submitting attendance: no response")
+	}
+
 	var result GraphQLResponse
 	if err := json.Unmarshal(resp, &result); err != nil {
 		respStr := string(resp)
