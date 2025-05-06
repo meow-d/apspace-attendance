@@ -1,6 +1,6 @@
 # apspace-attendance
 
-![video demo](https://github.com/meow-d/apspace-attendance/raw/refs/heads/main/demo.mp4)
+https://github.com/meow-d/apspace-attendance/raw/refs/heads/main/demo.mp4
 
 cli tool for submitting attendance code to APSpace/AttendiX
 
