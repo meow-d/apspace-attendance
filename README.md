@@ -1,5 +1,7 @@
 # apspace-attendance
 
+![video demo](https://github.com/meow-d/apspace-attendance/raw/refs/heads/main/demo.mp4)
+
 cli tool for submitting attendance code to APSpace/AttendiX
 
 also features a pretty tui made with [bubbletea](https://github.com/charmbracelet/bubbletea) if that's your thing
@@ -7,13 +9,17 @@ also features a pretty tui made with [bubbletea](https://github.com/charmbracele
 ## installation
 build the binary, then put the binary in your PATH. for example `mv attendance ~/.local/bin/`
 
-### building
-```sh
-go build ./cmd/attendance
-```
+### installation
+download the [latest release](https://github.com/meow-d/apspace-attendance/releases) and put the program anywhere you want
 
 ### uninstallation
 log out from the app to remove the stored password, then delete the binary
+
+## building
+```sh
+go get ./...
+go build ./cmd/attendance
+```
 
 ## usage
 run `attendance` for the tui
