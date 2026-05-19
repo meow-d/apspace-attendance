@@ -1,5 +1,8 @@
 # apspace-attendance
 
+> [!IMPORTANT]
+> no longer works as APU fixed their security (which is a good thing) without fixing the atrocious token expiry (why). all fixes will result in worse UX. see [#1](https://github.com/meow-d/apspace-attendance/issues/1).
+
 https://github.com/user-attachments/assets/f617a508-625b-44b9-a2a0-def66b1efaef
 
 cli tool for submitting attendance code to APSpace/AttendiX
